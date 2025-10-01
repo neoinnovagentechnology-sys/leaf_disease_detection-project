@@ -17,7 +17,7 @@ model = load_model()
 # ==============================
 # Load class labels
 # ==============================
-with open("models/class_labels.json") as f:
+with open("models/class_labels.json", "r") as f:
     class_names = json.load(f)
 
 # ==============================
@@ -68,7 +68,7 @@ if uploaded_file:
     predictions = model.predict(img_array)
     class_idx = np.argmax(predictions)
     confidence = np.max(predictions) * 100
-    disease_name = class_names[class_idx]
+    disease_name = class_names.get(str(class_idx), "Unknown Disease")
 
     # Show results
     st.image(uploaded_file, caption="Uploaded Leaf Image", use_container_width=True)
