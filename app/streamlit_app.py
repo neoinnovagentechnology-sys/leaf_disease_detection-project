@@ -1,27 +1,49 @@
 import streamlit as st
 import tensorflow as tf
 import numpy as np
-from PIL import Image
+from tensorflow.keras.preprocessing import image
+import json
+import requests
 
-st.title("🌿 Leaf Disease Detection")
-st.write("Upload a leaf image to classify its disease.")
+# Load trained model
+model = tf.keras.models.load_model("models/plant_model.h5")
 
-# Load Model
-model = tf.keras.models.load_model(r"C:\Users\naren\Downloads\leaf_disease_detection\models\plant_model.h5")
-class_names = ["Class1", "Class2", "Class3"]  # Replace with dataset classes
+# Load class labels
+with open("models/class_labels.json") as f:
+    class_names = json.load(f)
 
-# Upload image
-uploaded_file = st.file_uploader("Choose a leaf image...", type=["jpg","jpeg","png"])
-if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Leaf Image", use_column_width=True)
+# Function: AI Remedy Suggestion using Groq (example)
+def get_ai_remedy(disease_name: str):
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer YOUR_GROQ_API_KEY"}
+    payload = {
+        "model": "llama3-8b-8192",
+        "messages": [
+            {"role": "system", "content": "You are an expert plant pathologist. Suggest remedies for plant diseases in simple terms."},
+            {"role": "user", "content": f"Suggest remedies for {disease_name} disease in plants."}
+        ]
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    return response.json()["choices"][0]["message"]["content"]
 
-    img = image.resize((224,224))
-    img_array = np.array(img) / 255.0
+# Streamlit UI
+st.title("🌱 Plant Disease Detection + Remedies")
+
+uploaded_file = st.file_uploader("Upload a leaf image", type=["jpg","png","jpeg"])
+if uploaded_file:
+    img = image.load_img(uploaded_file, target_size=(224,224))
+    img_array = image.img_to_array(img)/255.0
     img_array = np.expand_dims(img_array, axis=0)
 
-    prediction = model.predict(img_array)
-    pred_class = class_names[np.argmax(prediction)]
-    confidence = np.max(prediction) * 100
+    predictions = model.predict(img_array)
+    class_idx = np.argmax(predictions)
+    confidence = np.max(predictions) * 100
+    disease_name = class_names[class_idx]
 
-    st.success(f"Prediction: {pred_class} ({confidence:.2f}% confidence)")
+    st.image(uploaded_file, caption="Uploaded Leaf Image", use_container_width=True)
+    st.success(f"Prediction: {disease_name} ({confidence:.2f}% confidence)")
+
+    # AI-based Remedy
+    st.info("💡 Fetching AI Remedy Suggestion...")
+    remedy = get_ai_remedy(disease_name)
+    st.write(remedy)
